@@ -15,9 +15,14 @@ export type DurationType = 'URGENT_PRACTICAL' | 'SAME_DAY_EXAM' | 'DAILY' | 'WEE
 export type BookingStatus =
   | 'PENDING_PAYMENT'
   | 'PAID_AWAITING_HANDOVER'
+  | 'COLLATERAL_UPLOADED_AWAITING_VENUE'
   | 'ACTIVE_RENTED'
   | 'RETURNED_COMPLETED'
-  | 'DISPUTED';
+  | 'FAILED_CANCELLED';
+
+export type BusinessOutcome = 'IN_PROGRESS' | 'SUCCESSFUL' | 'FAILED';
+
+export type AppPortalRole = 'STUDENT' | 'VENUE_PERSON' | 'MAIN_ADMIN';
 
 export interface StudentProfile {
   id: string;
@@ -31,11 +36,33 @@ export interface StudentProfile {
   department: string;
   level: string;
   studentIdCardImage?: string | null;
+  semesterTimetableImage?: string | null;
+  idNameRegMatched?: boolean;
+  aiScanReport?: string;
   verificationStatus: VerificationStatus;
   verifiedBy?: string;
   verificationNotes?: string;
   role: 'student' | 'attendant' | 'admin';
   createdAt: string;
+}
+
+/**
+ * Venue Person Account — Can ONLY be created by the Main Admin
+ */
+export interface VenuePersonAccount {
+  id: string;
+  staffCode: string;
+  fullName: string;
+  email: string;
+  accessPin: string;
+  phone: string;
+  institution: string;
+  assignedLocationId: string;
+  assignedLocationName: string;
+  status: 'ACTIVE' | 'SUSPENDED';
+  createdByAdmin: string;
+  createdAt: string;
+  totalHandledCount: number;
 }
 
 export interface StockLocation {
@@ -67,10 +94,10 @@ export interface RentalAsset {
   conditionGrade: string;
   sizeOrSpec: string;
   includedAccessories: string[];
-  urgentRate: number;      // e.g. 3-hour practical/exam rate in NGN
-  dailyRate: number;       // 24-hour rate in NGN
-  weeklyRate: number;      // 7-day rate in NGN
-  securityDeposit: number; // Refundable deposit liability in NGN
+  urgentRate: number;      // Instant rental price for 4-hour practical/exam in NGN
+  dailyRate: number;       // 24-hour rental price in NGN
+  weeklyRate: number;      // 7-day rental price in NGN
+  requiredCollateralNote: string; // Physical collateral item dropped at venue (no money deposit!)
   status: AssetStatus;
   imageUrl: string;
   totalRentalsCount: number;
@@ -79,9 +106,9 @@ export interface RentalAsset {
 export interface BookingRecord {
   id: string;
   bookingCode: string;
-  renterId: string;
-  renterName: string;
-  renterRegNumber: string;
+  renterId: string;          // Student ID (e.g. stu-demo-1)
+  renterName: string;        // Student Full Name
+  renterRegNumber: string;   // Student Reg/Matric Number
   renterDepartment: string;
   renterInstitution: string;
   assetId: string;
@@ -98,25 +125,26 @@ export interface BookingRecord {
   durationType: DurationType;
   durationLabel: string;
   rentalFee: number;
-  securityDeposit: number;
-  totalPaid: number;
+  totalPaid: number; // Strictly equals rentalFee (NO monetary deposit!)
   paymentReference: string;
   paymentVerifiedServerSide: boolean;
   bookingStatus: BookingStatus;
+  businessOutcome: BusinessOutcome;
+  failureReason?: string | null;
   handoverOtp: string;
-  // Collateral & Handover tracking (with auto-purge on return)
+  // Dual-Party Physical Collateral Verification (Student + Venue Person)
   collateralItemDescription: string | null;
-  collateralScreenshotData: string | null;
+  studentCollateralScreenshot: string | null;
+  venueCollateralScreenshot: string | null;
   collateralSubmittedAt: string | null;
+  venueVerifiedCollateralMatch: boolean;
+  venueVerifiedAt: string | null;
   collateralPurgedOnReturn: boolean;
   collateralPurgedAt: string | null;
   handoverConditionNotes: string | null;
   handoverConfirmedAt: string | null;
   returnConditionNotes: string | null;
   returnConfirmedAt: string | null;
-  depositDeductionAmount: number;
-  depositRefundedAmount: number;
-  depositRefundStatus: 'HELD_IN_LIABILITY' | 'REFUNDED_IN_FULL' | 'PARTIAL_REFUND';
   createdAt: string;
   dueAt: string;
 }
@@ -141,10 +169,10 @@ export interface UrgentCampusRequest {
 export interface PilotMetricsSummary {
   totalPaidBookings: number;
   activeRentalsCount: number;
+  awaitingVenueVerifyCount: number;
   completedReturnsCount: number;
+  failedBusinessCount: number;
   earnedRentalRevenue: number;
-  heldRefundableDeposits: number;
-  refundedDepositsTotal: number;
+  activePhysicalCollateralsHeld: number;
   collateralPhotosPurgedCount: number;
-  utilizationRatePercent: number;
 }
